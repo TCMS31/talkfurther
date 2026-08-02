@@ -1,0 +1,8 @@
+# Development and CI only. `make install` installs these too; a production image
+# installs requirements.txt alone.
+-r requirements.txt
+
+pytest>=8.0
+httpx>=0.27          # fastapi.testclient
+pytest-cov>=5.0
+ruff>=0.6

@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.env
+traces.jsonl
+captured_records.jsonl
+evals/results.json
+.DS_Store
+PRESENTATION.md
