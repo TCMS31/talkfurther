@@ -1,0 +1,320 @@
+# Further Behavioral Health — Facility Knowledge Base
+#
+# SINGLE SOURCE OF TRUTH for every factual claim the agent is permitted to make.
+#
+# Design notes:
+#   - Every fact has a stable `id`. The egress grounding guardrail checks the
+#     agent's response against the `id`s that were retrieved for that turn.
+#     This is the whole reason the KB exists as data rather than prose.
+#   - `topics` drives intent-keyed retrieval (app/knowledge/retrieval.py).
+#     A fact may belong to several topics.
+#   - `statement` is the canonical phrasing. The agent may rephrase for tone but
+#     may not add facts not present here.
+#   - `tokens` lists literals (numbers, URLs, phone numbers) that are legitimately
+#     assertable when this fact is in context. The deterministic egress check uses
+#     these as an allowlist — any number/URL in a response that is not in the
+#     retrieved allowlist is flagged as a probable hallucination.
+#
+# Contradiction resolutions vs. the original prompt are recorded in `_resolutions`
+# at the bottom of this file and surfaced in the README as assumptions.
+
+identity:
+  facility_name: Further Behavioral Health
+  agent_name: Sophie
+  agent_role: virtual admissions assistant
+  human_contact: Jami (Director of Admissions)
+
+facts:
+  # ─── Contact & location ────────────────────────────────────────────────────
+  - id: contact.phone
+    topics: [contact, general]
+    statement: "Our phone number is 850-445-8362."
+    tokens: ["850-445-8362", "8504458362"]
+
+  - id: contact.address
+    topics: [contact, general]
+    statement: "We're located at 145 Fake Street, Charlotte, NC 28203."
+    tokens: ["145", "28203"]
+
+  - id: careers.link
+    topics: [careers]
+    statement: >-
+      For careers and employment questions, our careers page has the current
+      openings and application details: https://www.talkfurther.com/events-demo
+    tokens: ["https://www.talkfurther.com/events-demo"]
+
+  # ─── Pricing ───────────────────────────────────────────────────────────────
+  - id: pricing.base
+    topics: [pricing]
+    statement: "Treatment starts at $30,000 a month."
+    tokens: ["30,000", "30000"]
+
+  - id: pricing.detox
+    topics: [pricing, care_types]
+    statement: "Detox starts from $8,000 a month."
+    tokens: ["8,000", "8000"]
+
+  - id: pricing.independent_living
+    topics: [pricing, care_types]
+    statement: "Independent Living starts from $2,000 a month."
+    tokens: ["2,000", "2000"]
+
+  - id: pricing.entrance_fee
+    topics: [pricing]
+    statement: "There is a one-time community entrance fee of $3,500."
+    tokens: ["3,500", "3500"]
+
+  - id: pricing.included
+    topics: [pricing, amenities]
+    statement: >-
+      Included in the monthly cost: basic cable, internet/WiFi, linen service,
+      breakfast, lunch and dinner, and housekeeping.
+
+  - id: pricing.unknown_by_room
+    topics: [pricing]
+    kind: limitation
+    statement: >-
+      We don't have pricing broken out by room type or size — a team member can
+      walk through those specifics.
+
+  # ─── Insurance & payment ───────────────────────────────────────────────────
+  - id: insurance.accepted
+    topics: [insurance, pricing]
+    statement: "We accept most major insurance providers."
+
+  - id: insurance.medicaid_not_accepted
+    topics: [insurance, pricing]
+    statement: "We are not able to accept Medicaid."
+
+  - id: insurance.assistance_programs
+    topics: [insurance, pricing]
+    statement: "Most payment assistance programs are accepted."
+
+  - id: insurance.veterans
+    topics: [insurance, pricing]
+    statement: "Veterans may be eligible for VA benefits toward the cost of care."
+
+  - id: insurance.verification_process
+    topics: [insurance]
+    statement: >-
+      We can't confirm coverage on the spot, but we can take down insurance
+      details and have a team member verify benefits and follow up.
+
+  # ─── Care types & clinical scope ───────────────────────────────────────────
+  - id: care.types_offered
+    topics: [care_types, general]
+    statement: "We offer Detox, Rehabilitation, and Independent Living."
+
+  - id: care.mental_health
+    topics: [care_types, services, general]
+    statement: "We offer mental health services alongside treatment."
+
+  - id: care.not_treated_substances
+    topics: [care_types, limitations]
+    statement: "We don't treat nicotine or kratom addiction."
+
+  - id: care.not_treated_behavioral
+    topics: [care_types, limitations]
+    statement: "We don't treat gambling or sex addiction."
+
+  - id: care.physical_therapy
+    topics: [services, care_types]
+    statement: "Onsite physical therapy is available through a third-party provider."
+
+  - id: care.capacity
+    topics: [general, care_types]
+    statement: "We have room for 60 clients in our community."
+    tokens: ["60"]
+
+  - id: care.availability
+    topics: [general, care_types]
+    statement: "We currently have availability across all room types."
+
+  # ─── Amenities & services ──────────────────────────────────────────────────
+  - id: amenities.list
+    topics: [amenities]
+    statement: >-
+      Amenities include elevators, party space, an exercise pool, chef-prepared
+      meals with seasonal ingredients, outdoor seating, housekeeping services, a
+      beauty salon, and a gym.
+
+  - id: services.list
+    topics: [services]
+    statement: >-
+      Services include 24-hour staffing, bathing assistance, errand assistance,
+      medication management, shopping assistance, dressing assistance, and
+      eating assistance.
+
+  - id: services.cleaning
+    topics: [services, amenities]
+    statement: "Cleaning services include housekeeping and linen service."
+
+  - id: activities.list
+    topics: [activities, amenities]
+    statement: >-
+      Activities include arts and crafts, book clubs, card playing, cooking
+      classes, exercise programs, game nights, movie nights, and yoga.
+
+  - id: dining.dietary_options
+    topics: [dining, amenities]
+    statement: >-
+      Dietary options include diabetic options, low sugar/low salt, vegetarian,
+      and gluten-free.
+
+  - id: dining.areas
+    topics: [dining, amenities]
+    statement: >-
+      Dining options include a dining room, in-room dining, and restaurant-style
+      meal service.
+
+  - id: rooms.amenities
+    topics: [rooms, amenities]
+    statement: >-
+      Rooms include air conditioning, microwaves, a private kitchenette, a
+      walk-in shower, and furnished rooms.
+
+  - id: rooms.ac_control_unknown
+    topics: [rooms, amenities, limitations]
+    kind: limitation
+    statement: >-
+      Rooms have air conditioning, but we don't have details on whether the
+      temperature is individually controlled per room.
+
+  - id: religious.services
+    topics: [religious, amenities]
+    statement: "We have devotional areas on site."
+
+  - id: outdoor.activities
+    topics: [outdoor, activities]
+    statement: >-
+      Outdoor activities include accompanied walks, park visits, walking trails,
+      and day trips.
+
+  - id: outdoor.areas
+    topics: [outdoor, amenities]
+    statement: >-
+      Outdoor areas include a courtyard, a garden, and grounds suitable for walking.
+
+  - id: fitness.options
+    topics: [fitness, amenities, activities]
+    statement: "Fitness options include a gym or fitness room, an exercise pool, and yoga."
+
+  # ─── Policies ──────────────────────────────────────────────────────────────
+  - id: policy.pets
+    topics: [policy, pets]
+    statement: >-
+      Cats, small dogs under 25 lbs, service animals, fish, and small birds are
+      welcome. Dogs over 25 lbs aren't able to join, though service animals are
+      always allowed.
+    tokens: ["25"]
+
+  - id: policy.smoking
+    topics: [policy]
+    statement: "We have designated outdoor smoking areas."
+
+  - id: policy.substances
+    topics: [policy]
+    statement: >-
+      Alcohol and substances of any kind are strictly prohibited on the premises.
+      All possessions are subject to search on arrival.
+
+  - id: policy.visiting
+    topics: [policy, visiting]
+    statement: >-
+      We have flexible visiting hours, guests are welcome at mealtimes, and
+      there's on-site parking for visitors.
+
+  - id: policy.private_aides
+    topics: [policy, services]
+    statement: "Private aides are welcome in our community."
+
+  - id: policy.gender_mixed
+    topics: [policy, general]
+    statement: "Our community is not separated by gender."
+
+  - id: policy.security
+    topics: [policy]
+    statement: "All staff undergo background checks."
+
+  # ─── Accessibility, transport, language ────────────────────────────────────
+  - id: access.wheelchair
+    topics: [accessibility, amenities]
+    statement: "The community is fully wheelchair accessible."
+
+  - id: access.vision
+    topics: [accessibility]
+    statement: "We are a vision-impaired friendly community."
+
+  - id: transport.services
+    topics: [transport, services]
+    statement: >-
+      We provide scheduled local transportation and transportation to medical
+      appointments.
+
+  - id: transport.parking
+    topics: [transport, policy]
+    statement: "Parking is available for residents."
+
+  - id: language.spoken
+    topics: [general, accessibility]
+    statement: "English and Spanish are spoken at the community."
+
+  # ─── Tours ─────────────────────────────────────────────────────────────────
+  - id: tour.hours
+    topics: [tour]
+    statement: "We offer tours Monday through Friday, 9:00 AM to 6:00 PM."
+    tokens: ["9", "6", "18"]
+
+  - id: tour.weekend_closed
+    topics: [tour]
+    statement: "We aren't able to host tours on Saturdays or Sundays."
+
+# ─── Known limitations ───────────────────────────────────────────────────────
+# Topics the agent must NOT improvise on. If a user asks about one of these and
+# no fact covers it, the correct behaviour is to say so and offer a handoff.
+known_limitations:
+  - "Pricing per room type or size"
+  - "Whether room air conditioning is individually controlled"
+  - "Kosher, halal, or other religious dietary preparation"
+  - "Specific clinical protocols, medications, or treatment plans"
+  - "Staff credentials, licensing, or accreditation details"
+  - "Length-of-stay guarantees or outcome statistics"
+
+# ─── Contradiction resolutions ───────────────────────────────────────────────
+# Recorded here so the reasoning travels with the data, not just the README.
+_resolutions:
+  - fact: policy.pets
+    original_conflict: >-
+      The baseline prompt stated "Pets are not allowed" and then immediately
+      listed cats, small dogs under 25 lbs, service animals, fish and small
+      birds as the pets policy.
+    resolution: >-
+      The specific policy list is authoritative; the blanket denial is treated as
+      the defect. This makes the brief's golden-retriever example answerable: the
+      dog is declined on the 25 lb rule, not on a blanket ban.
+
+  - fact: care.mental_health
+    original_conflict: >-
+      The baseline said "You do not have information about mental health
+      services" and, two lines later, "We offer mental health services in
+      addition to treatment."
+    resolution: >-
+      The affirmative statement is authoritative. A behavioral health facility
+      denying knowledge of its own mental health services is the less plausible
+      reading, and the brief lists it as an example question.
+
+  - fact: identity
+    original_conflict: >-
+      The agent was named "Kate" in the Objective and "Sophie" in the greeting;
+      the facility was "ACME Senior Living" in the Role and "Further Behavioral
+      Health" in Step 12.
+    resolution: >-
+      "Sophie" and "Further Behavioral Health" win — both appear in user-visible
+      strings, so they are what a client would already have seen.
+
+  - fact: insurance.medicaid_not_accepted
+    original_conflict: >-
+      Not contradictory, but buried inside Step 6 as a parenthetical while Step 4
+      routed insurance questions to a Step 7 that did not exist.
+    resolution: >-
+      Promoted to a first-class fact under the `insurance` topic.
