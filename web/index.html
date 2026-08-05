@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Further BH Admissions Agent</title>
+<style>
+  :root {
+    --bg: #0f1115; --panel: #171a21; --panel2: #1e222b; --line: #2a2f3a;
+    --text: #e6e9ef; --muted: #949cad; --accent: #5b8dee;
+    --ok: #3fb950; --warn: #d29922; --bad: #f85149; --crisis: #ff6b6b;
+    --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    height: 100vh; display: flex; flex-direction: column;
+  }
+  header {
+    padding: 12px 18px; border-bottom: 1px solid var(--line);
+    display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+  }
+  header h1 { font-size: 15px; margin: 0; font-weight: 600; }
+  header .sub { color: var(--muted); font-size: 12.5px; }
+  header .spacer { flex: 1; }
+  header .stat { font-family: var(--mono); font-size: 11.5px; color: var(--muted); }
+  header .mode {
+    font-family: var(--mono); font-size: 10px; letter-spacing: .05em; text-transform: uppercase;
+    padding: 3px 8px; border-radius: 4px; border: 1px solid var(--line); color: var(--muted);
+  }
+  header .mode.live { color: var(--ok); border-color: #1d4427; }
+  header .mode.offline { color: var(--warn); border-color: #574413; }
+
+  main { flex: 1; display: grid; grid-template-columns: 1fr 460px; min-height: 0; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } #traces { display: none; } }
+
+  #chat { display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--line); }
+  #log { flex: 1; overflow-y: auto; padding: 18px; display: flex; flex-direction: column; gap: 12px; }
+
+  .msg { max-width: 78%; padding: 10px 13px; border-radius: 12px; white-space: pre-wrap; word-wrap: break-word; }
+  .user { align-self: flex-end; background: var(--accent); color: #fff; border-bottom-right-radius: 3px; }
+  .bot { align-self: flex-start; background: var(--panel2); border: 1px solid var(--line); border-bottom-left-radius: 3px; }
+  .bot.crisis { border-color: var(--crisis); background: #2a1a1c; }
+  .bot.fallback { border-color: var(--warn); }
+  .bot.thinking { color: var(--muted); font-style: italic; }
+  .bot.thinking::after { content: ""; animation: dots 1.2s steps(4, end) infinite; }
+  @keyframes dots { 0% { content: ""; } 25% { content: "."; } 50% { content: ".."; } 75% { content: "..."; } }
+  .badge {
+    display: inline-block; font-family: var(--mono); font-size: 10px; letter-spacing: .04em;
+    text-transform: uppercase; padding: 2px 6px; border-radius: 4px; margin-bottom: 7px;
+  }
+  .badge.crisis { background: var(--crisis); color: #1a0d0e; }
+  .badge.fallback { background: var(--warn); color: #241a05; }
+
+  form { display: flex; gap: 9px; padding: 13px 18px; border-top: 1px solid var(--line); }
+  input {
+    flex: 1; background: var(--panel2); border: 1px solid var(--line); color: var(--text);
+    padding: 11px 13px; border-radius: 9px; font-size: 14.5px; font-family: inherit;
+  }
+  input:focus { outline: none; border-color: var(--accent); }
+  button {
+    background: var(--accent); color: #fff; border: 0; padding: 0 20px;
+    border-radius: 9px; font-weight: 600; cursor: pointer; font-size: 14px;
+  }
+  button:disabled { opacity: .45; cursor: default; }
+
+  #traces { overflow-y: auto; padding: 14px; background: var(--panel); }
+  #traces h2 {
+    font-size: 11px; text-transform: uppercase; letter-spacing: .09em;
+    color: var(--muted); margin: 0 0 4px;
+  }
+  #traces .hint { color: var(--muted); font-size: 12px; margin: 0 0 12px; }
+
+  .trace { background: var(--panel2); border: 1px solid var(--line); border-radius: 9px; padding: 11px; margin-bottom: 10px; }
+  .trace.is-crisis { border-color: var(--crisis); }
+  .trace .head { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 8px; align-items: center; }
+  .trace .turn { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+  .pill {
+    font-family: var(--mono); font-size: 10px; padding: 2px 7px; border-radius: 20px;
+    border: 1px solid var(--line); color: var(--muted);
+  }
+  .pill.ok { color: var(--ok); border-color: #1d4427; }
+  .pill.bad { color: var(--bad); border-color: #5c2626; }
+  .pill.warn { color: var(--warn); border-color: #574413; }
+  .pill.crisis { color: var(--crisis); border-color: #6b2b2b; }
+
+  .row { display: flex; gap: 8px; font-size: 12px; padding: 3px 0; border-top: 1px solid #23262f; }
+  .row:first-of-type { border-top: 0; }
+  .row .k { color: var(--muted); min-width: 78px; flex-shrink: 0; }
+  .row .v { font-family: var(--mono); font-size: 11px; word-break: break-word; }
+  .facts { color: #8fa4c8; }
+  .viol { color: var(--bad); }
+  .empty { color: var(--muted); font-size: 12.5px; padding: 16px; text-align: center; }
+
+  .examples { padding: 0 18px 10px; display: flex; flex-wrap: wrap; gap: 6px; }
+  .examples button {
+    background: var(--panel2); color: var(--muted); border: 1px solid var(--line);
+    font-size: 11.5px; padding: 5px 9px; border-radius: 14px; font-weight: 400;
+  }
+  .examples button:hover { color: var(--text); border-color: var(--accent); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Further BH Admissions Agent</h1>
+  <span class="sub">chat + live guardrail trace</span>
+  <span class="spacer"></span>
+  <span class="mode" id="mode">checking…</span>
+  <span class="stat" id="stats"></span>
+</header>
+
+<main>
+  <section id="chat">
+    <div id="log"></div>
+    <div class="examples" id="examples"></div>
+    <form id="form">
+      <input id="input" autocomplete="off" placeholder="Ask about cost, insurance, a tour…" />
+      <button id="send" type="submit">Send</button>
+    </form>
+  </section>
+
+  <aside id="traces">
+    <h2>Turn traces</h2>
+    <p class="hint">Every layer's decision, per turn — what was retrieved, what ran, what passed.</p>
+    <div id="traceList"><div class="empty">No turns yet.</div></div>
+  </aside>
+</main>
+
+<script>
+const log = document.getElementById('log');
+const traceList = document.getElementById('traceList');
+const form = document.getElementById('form');
+const input = document.getElementById('input');
+const send = document.getElementById('send');
+const stats = document.getElementById('stats');
+const mode = document.getElementById('mode');
+
+// Label the run honestly. A demo on the scripted double must say so on screen:
+// the deterministic layers are genuinely exercised, the wording is not.
+fetch('/health').then(r => r.json()).then(h => {
+  const offline = h.offline_mode;
+  mode.textContent = offline ? 'offline · scripted double' : `live · ${h.agent_model}`;
+  mode.classList.add(offline ? 'offline' : 'live');
+  mode.title = offline
+    ? 'Responses come from a scripted double. Guardrails, routing and date logic are real; response quality is not meaningful.'
+    : `${h.facts_loaded} facts loaded · guard model ${h.guard_model}`;
+}).catch(() => { mode.textContent = 'unreachable'; });
+
+let sessionId = null;
+let totalCost = 0;
+let turns = 0;
+
+const EXAMPLES = [
+  "How much does treatment cost?",
+  "Wow, that's expensive. Do you take Medicaid?",
+  "I'd like a tour — does next Sunday at 3pm work?",
+  "Are dogs allowed? My mom has a golden retriever",
+  "Can I get Kosher and low sodium meals?",
+  "Do you offer mental health services?",
+];
+
+const ex = document.getElementById('examples');
+EXAMPLES.forEach(text => {
+  const b = document.createElement('button');
+  b.textContent = text;
+  b.type = 'button';
+  b.onclick = () => { input.value = text; input.focus(); };
+  ex.appendChild(b);
+});
+
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c =>
+    ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+
+function addMessage(text, who, trace) {
+  const el = document.createElement('div');
+  el.className = 'msg ' + who;
+  let prefix = '';
+  if (who === 'bot' && trace) {
+    if (trace.crisis && trace.crisis.category !== 'none') {
+      el.classList.add('crisis');
+      prefix = '<span class="badge crisis">crisis protocol</span>';
+    } else if (trace.fallback_used) {
+      el.classList.add('fallback');
+      prefix = '<span class="badge fallback">grounding fallback</span>';
+    }
+  }
+  el.innerHTML = prefix + esc(text);
+  log.appendChild(el);
+  log.scrollTop = log.scrollHeight;
+}
+
+function verdictPill(label, verdict) {
+  if (verdict === null || verdict === undefined) {
+    return `<span class="pill">${label}: skipped</span>`;
+  }
+  const cls = verdict.passed ? 'ok' : 'bad';
+  return `<span class="pill ${cls}">${label}: ${verdict.passed ? 'pass' : 'fail'}</span>`;
+}
+
+function row(k, v, cls) {
+  return `<div class="row"><span class="k">${k}</span><span class="v ${cls || ''}">${v}</span></div>`;
+}
+
+function renderTrace(t) {
+  if (traceList.querySelector('.empty')) traceList.innerHTML = '';
+
+  const isCrisis = t.crisis && t.crisis.category !== 'none';
+  const el = document.createElement('div');
+  el.className = 'trace' + (isCrisis ? ' is-crisis' : '');
+
+  let pills = '';
+  if (isCrisis) {
+    pills += `<span class="pill crisis">${esc(t.crisis.category)}</span>`;
+  } else {
+    pills += verdictPill('det', t.deterministic_verdict);
+    pills += ' ' + verdictPill('ground', t.grounding_verdict);
+  }
+
+  let body = '';
+  if (isCrisis) {
+    body += row('detected by', esc(t.crisis.detected_by));
+    if (t.crisis.matched) body += row('matched', esc(t.crisis.matched));
+    body += row('generation', 'BYPASSED — scripted response');
+  } else {
+    body += row('intent', esc(t.intent || '—'));
+    body += row('subject', esc(t.subject));
+    body += row('facts', t.retrieved_fact_ids.length
+      ? esc(t.retrieved_fact_ids.join(', ')) : '(none)', 'facts');
+    if (t.tool_calls.length) {
+      body += row('tools', t.tool_calls.map(c =>
+        esc(c.name) + (c.error ? ' ✗' : ' ✓')).join(', '));
+    }
+    const viols = []
+      .concat((t.deterministic_verdict && t.deterministic_verdict.violations) || [])
+      .concat((t.grounding_verdict && t.grounding_verdict.violations) || []);
+    if (viols.length) {
+      body += row('violations', viols.map(v =>
+        `[${esc(v.severity)}] ${esc(v.code)}: ${esc(v.detail)}`).join('<br>'), 'viol');
+    }
+    if (t.repair_attempts) body += row('repairs', t.repair_attempts);
+    if (t.fallback_used) body += row('fallback', 'YES — response withheld', 'viol');
+  }
+
+  if (t.errors && t.errors.length) body += row('errors', esc(t.errors.join('; ')), 'viol');
+  body += row('latency', esc(JSON.stringify(t.latency_ms)));
+  body += row('cost', '$' + Number(t.estimated_cost_usd).toFixed(5)
+    + '  ·  ' + (t.tokens.prompt || 0) + 'p/' + (t.tokens.completion || 0) + 'c'
+    + '  ·  ' + (t.tokens.calls || 0) + ' calls');
+
+  el.innerHTML =
+    `<div class="head"><span class="turn">turn ${t.turn_index}</span><span>${pills}</span></div>` + body;
+
+  traceList.prepend(el);
+}
+
+form.onsubmit = async (e) => {
+  e.preventDefault();
+  const text = input.value.trim();
+  if (!text) return;
+
+  addMessage(text, 'user');
+  input.value = '';
+  send.disabled = true;
+  send.textContent = '…';
+
+  const pending = document.createElement('div');
+  pending.className = 'msg bot thinking';
+  pending.textContent = 'Checking the knowledge base';
+  log.appendChild(pending);
+  log.scrollTop = log.scrollHeight;
+
+  try {
+    const res = await fetch('/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: text, session_id: sessionId }),
+    });
+    if (!res.ok) {
+      const detail = await res.text();
+      pending.remove();
+      addMessage('Request failed: ' + detail, 'bot');
+      return;
+    }
+    const data = await res.json();
+    pending.remove();
+    sessionId = data.session_id;
+    addMessage(data.response, 'bot', data.trace);
+    renderTrace(data.trace);
+
+    turns += 1;
+    totalCost += Number(data.trace.estimated_cost_usd || 0);
+    stats.textContent = `${turns} turns · $${totalCost.toFixed(4)} · session ${sessionId}`;
+  } catch (err) {
+    pending.remove();
+    addMessage('Network error: ' + err.message, 'bot');
+  } finally {
+    pending.remove();
+    send.disabled = false;
+    send.textContent = 'Send';
+    input.focus();
+  }
+};
+
+input.focus();
+</script>
+</body>
+</html>
