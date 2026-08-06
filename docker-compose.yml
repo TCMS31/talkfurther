@@ -1,0 +1,27 @@
+services:
+  agent:
+    build:
+      context: .
+      target: runtime
+    image: further-bh-admissions-agent:local
+    ports:
+      # Host 8910 keeps the container off the usual 8000, which is nearly always
+      # already taken on a dev machine.
+      - "8910:8000"
+    environment:
+      # Optional. With no key the container still boots, serves the UI and
+      # answers /health; only a turn that reaches the model fails.
+      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
+      AGENT_MODEL: "${AGENT_MODEL:-gpt-4o}"
+      GUARD_MODEL: "${GUARD_MODEL:-gpt-4o-mini}"
+      FACILITY_TIMEZONE: "${FACILITY_TIMEZONE:-America/New_York}"
+      # Set OFFLINE_MODE=1 to run the whole system against the scripted double.
+      OFFLINE_MODE: "${OFFLINE_MODE:-}"
+    volumes:
+      # Traces and captured records are the observability product; keeping them
+      # in a named volume means a restart does not erase the audit trail.
+      - further-data:/var/lib/further
+    restart: unless-stopped
+
+volumes:
+  further-data:

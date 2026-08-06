@@ -1,0 +1,29 @@
+.git
+.github
+.venv
+venv
+__pycache__
+**/__pycache__
+*.py[cod]
+.pytest_cache
+.ruff_cache
+.coverage
+htmlcov
+
+# Never bake credentials or local state into an image.
+.env
+*.env
+traces.jsonl
+captured_records.jsonl
+evals/results.json
+
+# Not needed at runtime.
+tests
+docs
+diagrams
+PLAN.md
+TESTING.md
+README.md
+Makefile
+requirements-dev.txt
+.DS_Store
