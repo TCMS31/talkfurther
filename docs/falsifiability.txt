@@ -1,0 +1,14 @@
+MUTATION                                                    CAUGHT  RESULT
+------------------------------------------------------------------------------------------------------------
+next-weekday resolution shifted a week                      YES     102 failed, 105 passed in 1.74s
+restore the old length-based claim gate                     YES     7 failed, 32 passed in 0.36s
+let the classifier override every deterministic crisis hit  YES     2 failed, 61 passed in 0.37s
+unbound the /traces limit again                             YES     3 failed, 14 passed in 0.46s
+stop filtering traces by session                            YES     2 failed, 27 passed in 0.46s
+cost accounting off by 1000x                                YES     4 failed, 13 passed in 0.32s
+unroutable turn guesses PRICING instead of UNKNOWN          YES     2 failed, 37 passed in 0.30s
+offline double stops quoting the retrieved facts            YES     7 failed, 10 passed in 0.29s
+capture sink ignores CAPTURE_PATH                           YES     1 failed, 206 passed in 1.13s
+(control: unmutated tree)                                   n/a     399 passed in 1.60s
+
+caught: 9 of 9
